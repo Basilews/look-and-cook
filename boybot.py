@@ -1,21 +1,59 @@
+# -*- coding: utf-8 -*-
 import requests
-import json
-from pprint import pprint
 
-with open('src/data.json') as f:
-    data = json.load(f)
+class BotHandler:
+    def __init__(self, token):
+        self.token = token
+        print self.token
+        self.api_url = "https://api.telegram.org/bot{}/".format(self.token)
 
-pprint(data)
+    def get_updates(self, offset=None, timeout=30):
+        method = 'getUpdates'
+        params = {'timeout': timeout, 'offset': offset}
+        resp = requests.get(self.api_url + method, params)
+        result_json = resp.json()['result']
+        return result_json
 
-url = "https://api.telegram.org/bot<ваш_токен>/"
+    def send_message(self, chat_id, text):
+        params = {'chat_id': chat_id, 'text': text}
+        method = 'sendMessage'
+        resp = requests.post(self.api_url + method, params)
+        return resp
+
+    def get_last_update(self):
+        get_result = self.get_updates()
+
+        if len(get_result) > 0:
+            last_update = get_result[-1]
+        else:
+            last_update = get_result[len(get_result)]
+
+        return last_update
 
 
-def get_updates_json(request):
-    response = requests.get(request + 'getUpdates')
-    return response.json()
+token = open("token.txt", "r").read().rstrip()
+cook_bot = BotHandler(token)
+
+def main():
+    new_offset = None
+
+    while True:
+        cook_bot.get_updates(new_offset)
+
+        last_update = cook_bot.get_last_update()
+
+        last_update_id = last_update['update_id']
+        last_chat_text = last_update['message']['text']
+        last_chat_id = last_update['message']['chat']['id']
+
+        if last_chat_text.lower():
+            cook_bot.send_message(last_chat_id, u'Ты написал(а) Черепахе ⚠️')
+
+        new_offset = last_update_id + 1
 
 
-def last_update(data):
-    results = data['result']
-    total_updates = len(results) - 1
-    return results[total_updates]
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        exit()
